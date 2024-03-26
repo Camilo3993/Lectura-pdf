@@ -69,11 +69,18 @@ class Link(MethodView):
 
                 # Enumera las tablas en la página actual
                 for num_tabla, table in enumerate(tables, start=1):
-                    # Agrega la información de la tabla a la lista de tablas extraídas
+                    # Organiza los datos de la tabla para agrupar los valores de cada columna
+                    tabla_procesada = []
+                    num_columnas = len(table[0])  # Obtén el número de columnas de la tabla
+                    for i in range(num_columnas):
+                        columna = [fila[i] for fila in table if fila[i] is not None]  # Extrae los valores de la columna
+                        tabla_procesada.append(columna)
+
+                    # Agrega la información de la tabla procesada a la lista de tablas extraídas
                     tablas_extraidas.append({
                         "numero_pagina": num_pagina,
                         "numero_tabla": num_tabla,
-                        "contenido": table
+                        "contenido": tabla_procesada
                     })
 
         # Agrega las tablas extraídas a los datos de respuesta
