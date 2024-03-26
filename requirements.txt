@@ -1,0 +1,12 @@
+flask
+flask-smorest
+python-dotenv
+marshmallow
+pandas
+ibm-db
+ibm_cloud_sdk_core
+requests
+numpy
+scikit-learn
+pdfplumber
+beautifulsoup4
