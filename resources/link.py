@@ -1,3 +1,6 @@
+import os
+import tempfile
+
 # Importa la clase MethodView de flask.views
 from flask.views import MethodView
 # Importa la clase Blueprint y la función abort de flask_smorest
@@ -39,18 +42,22 @@ class Link(MethodView):
         nombre = json_data.get('nombre')
         response = requests.get(link)
 
-        # Asegúrate de que la solicitud fue exitosa
-        if response.status_code == 200:
-            # Define la ruta donde se guardará el archivo PDF
-            ruta_pdf = f"/workspaces/Lectura-pdf/pdf/{nombre}.pdf"  # Ruta relativa a la carpeta actual
-            
-            # Guarda el archivo PDF en tu sistema local
-            with open(ruta_pdf, "wb") as pdf_file:
-                pdf_file.write(response.content)
-            
-            print("Archivo PDF descargado correctamente.")
-        else:
-            print(f"Error al descargar el archivo. Código de estado: {response.status_code}")
+
+        # Obtener el sistema operativo
+        sistema_operativo = os.name  # 'posix' para Unix/Linux/MacOS, 'nt' para Windows
+
+        # Crear un directorio temporal para descargar el PDF
+        directorio_temporal = tempfile.mkdtemp()
+
+        # Luego, puedes usar este directorio temporal para guardar el archivo PDF
+        ruta_pdf = os.path.join(directorio_temporal, f"{nombre}.pdf")
+
+        # Guardar el archivo PDF en el directorio temporal
+        with open(ruta_pdf, "wb") as pdf_file:
+            pdf_file.write(response.content)
+
+        print("Archivo PDF descargado correctamente en el directorio temporal:", ruta_pdf)
+
 
 
         # Define una lista para almacenar las tablas extraídas
