@@ -31,8 +31,12 @@ class Link(MethodView):
         link = json_data.get('link')
         nombre = json_data.get('nombre')
 
-        # Realiza la solicitud GET al link
+        # Realiza una solicitud GET al enlace para verificar si es válido y se puede descargar el PDF
         response = requests.get(link)
+
+        # Verifica si la solicitud fue exitosa (código de estado 200)
+        if response.status_code != 200 or response.headers.get('content-type') != 'application/pdf':
+            return jsonify({"error": "El enlace proporcionado no es válido o no se puede descargar el PDF"}), 400
 
         # Obtener el sistema operativo
         sistema_operativo = os.name  # 'posix' para Unix/Linux/MacOS, 'nt' para Windows
@@ -82,3 +86,4 @@ class Link(MethodView):
 
         # Retorna los datos de respuesta en formato JSON
         return jsonify(response_data)
+
