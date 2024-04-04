@@ -1,97 +1,84 @@
 import os
 import tempfile
-
-# Importa la clase MethodView de flask.views
-from flask.views import MethodView
-# Importa la clase Blueprint y la función abort de flask_smorest
-from flask_smorest import Blueprint, abort
-
-import pdfplumber
-
-# Importa el esquema PreguntaSchema desde el archivo schemas.py
 from schemas import LinkSchema
-from flask import Flask, request, jsonify ,session
+from flask.views import MethodView
+from flask_smorest import Blueprint
+import pdfplumber
+from flask import Flask, request, jsonify
 import requests
 
-from bs4 import BeautifulSoup
-
-# Crea un objeto Blueprint llamado "pregunta" con descripción "enviar pregunta y obtener respuesta"
+# Crea un objeto Blueprint llamado "link" con descripción "enviar link y extraer la informacion del documento"
 blp = Blueprint("link", "links", description="enviar link y extraer la informacion del documento")
 
-
-
-# Define una ruta "/pregunta" dentro del Blueprint
+# Define una ruta "/link" dentro del Blueprint
 @blp.route("/link")
-# Define una clase llamada pregunta que hereda de MethodView
+# Define una clase llamada Link que hereda de MethodView
 class Link(MethodView):
-    # Define un método POST para enviar una pregunta
+    # Define un método POST para enviar un link
     @blp.arguments(LinkSchema)
-    # codigo 201 que indica que se creo una nueva pregunta 
+    # Código 201 que indica que se creó un nuevo link 
     @blp.response(201, LinkSchema)
-    # Define la función post que toma pregunta como parámetro
+    # Define la función post que toma el link como parámetro
     def post(self, link):
-        
-
+        # Extrae el JSON del request
         json_data = request.json
-        
 
+        # Verifica si el JSON es válido y contiene el campo "link"
         if not json_data or 'link' not in json_data:
-            return jsonify({"error": "Invalid JSON format"}), 400  
+            return jsonify({"error": "Formato JSON inválido"}), 400  
 
+        # Obtiene el link y el nombre del JSON
         link = json_data.get('link')
         nombre = json_data.get('nombre')
-        response = requests.get(link)
 
+        # Realiza la solicitud GET al link
+        response = requests.get(link)
 
         # Obtener el sistema operativo
         sistema_operativo = os.name  # 'posix' para Unix/Linux/MacOS, 'nt' para Windows
 
-        # Crear un directorio temporal para descargar el PDF
-        directorio_temporal = tempfile.mkdtemp()
+        # Crear un directorio temporal usando la ruta apropiada para el sistema operativo
+        directorio_temporal = None
+        if sistema_operativo == 'posix':  # Unix/Linux/MacOS
+            directorio_temporal = tempfile.mkdtemp()
+        elif sistema_operativo == 'nt':  # Windows
+            directorio_temporal = tempfile.mkdtemp()
+        else:
+            return jsonify({"error": "Sistema operativo no compatible"}), 400
 
-        # Luego, puedes usar este directorio temporal para guardar el archivo PDF
+        # Construir la ruta del archivo PDF en el directorio temporal
         ruta_pdf = os.path.join(directorio_temporal, f"{nombre}.pdf")
 
-        # Guardar el archivo PDF en el directorio temporal
+        # Guardar el archivo PDF en la ruta construida
         with open(ruta_pdf, "wb") as pdf_file:
             pdf_file.write(response.content)
 
-        print("Archivo PDF descargado correctamente en el directorio temporal:", ruta_pdf)
-
-
+        print("Archivo PDF descargado correctamente en la ruta:", ruta_pdf)
 
         # Define una lista para almacenar las tablas extraídas
         tablas_extraidas = []
 
         # Abre el archivo PDF con pdfplumber
         with pdfplumber.open(ruta_pdf) as pdf:
-            # Itera sobre todas las páginas del PDF
             for num_pagina, page in enumerate(pdf.pages, start=1):
-                # Extrae las tablas de la página actual
                 tables = page.extract_tables(table_settings={"vertical_strategy": "lines", "horizontal_strategy": "lines"})
 
-                # Si no hay tablas en esta página, pasa a la siguiente
                 if not tables:
                     continue
 
-                # Enumera las tablas en la página actual
-                for num_tabla, table in enumerate(tables, start=1):
-                    # Organiza los datos de la tabla para agrupar los valores de cada columna
-                    tabla_procesada = []
-                    num_columnas = len(table[0])  # Obtén el número de columnas de la tabla
-                    for i in range(num_columnas):
-                        columna = [fila[i] for fila in table if fila[i] is not None]  # Extrae los valores de la columna
-                        tabla_procesada.append(columna)
-
-                    # Agrega la información de la tabla procesada a la lista de tablas extraídas
-                    tablas_extraidas.append({
+                num_tabla_pagina = 1  # Inicializa el contador de tablas por página
+                for table in tables:
+                    tabla_dict = {
                         "numero_pagina": num_pagina,
-                        "numero_tabla": num_tabla,
-                        "contenido": tabla_procesada
-                    })
+                        "numero_tabla": num_tabla_pagina,
+                        "contenido": table
+                    }
+                    tablas_extraidas.append(tabla_dict)
+                    
+                    num_tabla_pagina += 1
 
         # Agrega las tablas extraídas a los datos de respuesta
-        response_data = {'test': link, 'nombre': nombre, 'tablas': tablas_extraidas}
+        response_data = {'test': link, 'nombre': nombre, 'pdf': tablas_extraidas}
 
         # Retorna los datos de respuesta en formato JSON
         return jsonify(response_data)
